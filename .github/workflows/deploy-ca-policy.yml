@@ -44,7 +44,7 @@ jobs:
         run: |
           $secureClientSecret = ${{ secrets.AZURE_CLIENT_SECRET }}
             $authCreds = @{
-                TenantId               = $tenantId
+                TenantId               = ${{ secrets.AZURE_TENANT_ID }}
                 ClientSecretCredential = [pscredential]::new(${{ secrets.AZURE_CLIENT_ID }}, $secureClientSecret)
             }  
           Connect-MgGraph @authCreds 
