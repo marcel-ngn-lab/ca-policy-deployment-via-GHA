@@ -1,17 +1,53 @@
 {
-    "displayName": "Require MFA for all users",
-    "state": "enabled",
-    "conditions": {
-      "clientAppTypes": ["all"],
-      "applications": {
-        "includeApplications": ["All"]
-      },
-      "users": {
-        "includeUsers": ["All"]
-      }
+  "displayName": "GLOBAL - 1010 - BLOCK - Legacy Authentication",
+  "state": "enabledForReportingButNotEnforced",
+  "conditions": {
+    "platforms": null,
+    "userRiskLevels": [],
+    "clientApplications": null,
+    "times": null,
+    "deviceStates": null,
+    "users": {
+      "includeGuestsOrExternalUsers": null,
+      "includeGroups": [],
+      "excludeGuestsOrExternalUsers": null,
+      "includeUsers": [
+        "All"
+      ],
+      "excludeUsers": [],
+      "excludeGroups": [
+        "Excluded from Conditional Access",
+        "Excluded from Legacy Authentication Block"
+      ],
+      "excludeRoles": [],
+      "includeRoles": []
     },
-    "grantControls": {
-      "operator": "OR",
-      "builtInControls": ["mfa"]
-    }
-  }
+    "devices": null,
+    "locations": null,
+    "clientAppTypes": [
+      "exchangeActiveSync",
+      "other"
+    ],
+    "applications": {
+      "applicationFilter": null,
+      "excludeApplications": [],
+      "includeUserActions": [],
+      "includeApplications": [
+        "All"
+      ],
+      "includeAuthenticationContextClassReferences": []
+    },
+    "signInRiskLevels": []
+  },
+  "grantControls": {
+    "operator": "OR",
+    "builtInControls": [
+      "block"
+    ],
+    "customAuthenticationFactors": [],
+    "termsOfUse": [],
+    "authenticationStrength": null
+  },
+  "sessionControls": null,
+  "templateId": null
+}
