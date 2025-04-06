@@ -44,7 +44,7 @@ jobs:
         run: |
           $ApplicationId = "${{ secrets.AZURE_CLIENT_ID }}"
                 $SecuredPassword = "${{ secrets.AZURE_CLIENT_SECRET }}"
-                $tenantID = "${{ secrets.AZURE_TENANT_ID }}
+                $tenantID = "${{ secrets.AZURE_TENANT_ID }}"
 
                 $SecuredPasswordPassword = ConvertTo-SecureString `
                 -String $SecuredPassword -AsPlainText -Force
