@@ -1,5 +1,5 @@
 # Get policy definition from repository
-$policyDefinition = Get-Content -Path "./policies/policy.ps1" | ConvertFrom-Json
+$policyDefinition = Get-Content -Path "./policies/policy.ps1"
 
 # Check if policy already exists
 $existingPolicy = Get-MgIdentityConditionalAccessPolicy | Where-Object {$_.DisplayName -eq $policyDefinition.displayName}
