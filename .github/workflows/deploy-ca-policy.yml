@@ -42,7 +42,12 @@ jobs:
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
         run: |
-          Connect-MgGraph -ClientId $env:AZURE_CLIENT_ID -TenantId $env:AZURE_TENANT_ID -ClientSecret $env:AZURE_CLIENT_SECRET
+          $secureClientSecret = ${{ secrets.AZURE_CLIENT_SECRET }}
+            $authCreds = @{
+                TenantId               = $tenantId
+                ClientSecretCredential = [pscredential]::new(${{ secrets.AZURE_CLIENT_ID }}, $secureClientSecret)
+            }  
+          Connect-MgGraph @authCreds 
           # Execute the deployment script
           ./scripts/deploy-policy.ps1
         shell: pwsh
