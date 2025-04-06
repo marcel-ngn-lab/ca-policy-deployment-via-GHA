@@ -42,9 +42,9 @@ jobs:
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
         run: |
-          $secureClientSecret = ${{ secrets.AZURE_CLIENT_SECRET }}
-          $secureTenantID = ${{ secrets.AZURE_TENANT_ID }}
-          $secureClientID = ${{ secrets.AZURE_CLIENT_ID }}
+          $secureClientSecret = "${{ secrets.AZURE_CLIENT_SECRET }}"
+          $secureTenantID = "${{ secrets.AZURE_TENANT_ID }}"
+          $secureClientID = "${{ secrets.AZURE_CLIENT_ID }}"
             $authCreds = @{
                 TenantId               = $secureTenantID
                 ClientSecretCredential = [pscredential]::new($secureClientID, $secureClientSecret)
