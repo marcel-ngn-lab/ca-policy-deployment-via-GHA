@@ -44,9 +44,10 @@ jobs:
         run: |
           $secureClientSecret = ${{ secrets.AZURE_CLIENT_SECRET }}
           $secureTenantID = ${{ secrets.AZURE_TENANT_ID }}
+          $secureClientID = ${{ secrets.AZURE_CLIENT_ID }}
             $authCreds = @{
                 TenantId               = $secureTenantID
-                ClientSecretCredential = [pscredential]::new(${{ secrets.AZURE_CLIENT_ID }}, $secureClientSecret)
+                ClientSecretCredential = [pscredential]::new($secureClientID, $secureClientSecret)
             }  
           Connect-MgGraph @authCreds 
           # Execute the deployment script
