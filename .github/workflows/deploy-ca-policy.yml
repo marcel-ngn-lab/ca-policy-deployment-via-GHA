@@ -1,0 +1,37 @@
+name: Deploy Conditional Access Policy
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'policies/**'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+      
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          # Or use individual secrets:
+          # client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          # tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          # subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          # client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          
+      - name: Install Microsoft Graph PowerShell modules
+        run: |
+          Install-Module Microsoft.Graph.Identity.SignIns -Force
+          Import-Module Microsoft.Graph.Identity.SignIns
+        shell: pwsh
+        
+      - name: Deploy Conditional Access Policy
+        run: |
+          Connect-MgGraph -ClientId ${{ secrets.AZURE_CLIENT_ID }} -TenantId ${{ secrets.AZURE_TENANT_ID }} -ClientSecret ${{ secrets.AZURE_CLIENT_SECRET }}
+          # Example deployment script
+          ./scripts/deploy-policy.ps1
+        shell: pwsh
