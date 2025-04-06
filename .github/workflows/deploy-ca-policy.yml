@@ -17,12 +17,7 @@ jobs:
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
-          # Or use individual secrets:
-          # client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          # tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          # subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          # client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
-          
+
       - name: Install Microsoft Graph PowerShell modules
         run: |
           Install-Module Microsoft.Graph.Identity.SignIns -Force
