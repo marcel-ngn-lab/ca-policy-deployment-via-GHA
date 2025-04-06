@@ -1,53 +1,18 @@
 {
-  "displayName": "GLOBAL - 1010 - BLOCK - Legacy Authentication",
-  "state": "enabledForReportingButNotEnforced",
+  "displayName": "Block Legacy Auth",
   "conditions": {
-    "platforms": null,
-    "userRiskLevels": [],
-    "clientApplications": null,
-    "times": null,
-    "deviceStates": null,
-    "users": {
-      "includeGuestsOrExternalUsers": null,
-      "includeGroups": [],
-      "excludeGuestsOrExternalUsers": null,
-      "includeUsers": [
-        "All"
-      ],
-      "excludeUsers": [],
-      "excludeGroups": [
-        "Excluded from Conditional Access",
-        "Excluded from Legacy Authentication Block"
-      ],
-      "excludeRoles": [],
-      "includeRoles": []
-    },
-    "devices": null,
-    "locations": null,
-    "clientAppTypes": [
-      "exchangeActiveSync",
-      "other"
-    ],
     "applications": {
-      "applicationFilter": null,
-      "excludeApplications": [],
-      "includeUserActions": [],
-      "includeApplications": [
-        "All"
-      ],
-      "includeAuthenticationContextClassReferences": []
+      "includeApplications": [ "All" ]
     },
-    "signInRiskLevels": []
+    "clientAppTypes": [ "exchangeActiveSync", "other" ],
+    "users": {
+      "includeUsers": [ "All" ]
+    }
   },
   "grantControls": {
     "operator": "OR",
-    "builtInControls": [
-      "block"
-    ],
-    "customAuthenticationFactors": [],
-    "termsOfUse": [],
-    "authenticationStrength": null
+    "builtInControls": [ "block" ]
   },
-  "sessionControls": null,
-  "templateId": null
+  "sessionControls": {},
+  "state": "enabled"
 }

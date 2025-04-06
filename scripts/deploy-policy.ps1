@@ -1,15 +1,23 @@
-# Get policy definition from repository
 $policyDefinition = Get-Content -Path "./policies/policy.json" | ConvertFrom-Json
 
-# Check if policy already exists
-$existingPolicy = Get-MgIdentityConditionalAccessPolicy | Where-Object {$_.DisplayName -eq $policyDefinition.displayName}
+if (-not $policyDefinition) {
+    throw "Failed to parse policy JSON."
+}
+
+$params = @{
+    DisplayName      = $policyDefinition.displayName
+    Conditions       = $policyDefinition.conditions
+    GrantControls    = $policyDefinition.grantControls
+    SessionControls  = $policyDefinition.sessionControls
+    State            = $policyDefinition.state
+}
+
+$existingPolicy = Get-MgIdentityConditionalAccessPolicy | Where-Object { $_.DisplayName -eq $policyDefinition.displayName }
 
 if ($existingPolicy) {
-    # Update existing policy
-    Update-MgIdentityConditionalAccessPolicy -ConditionalAccessPolicyId $existingPolicy.Id -BodyParameter $policyDefinition
+    Update-MgIdentityConditionalAccessPolicy -ConditionalAccessPolicyId $existingPolicy.Id @params
     Write-Output "Updated existing policy: $($policyDefinition.displayName)"
 } else {
-    # Create new policy
-    New-MgIdentityConditionalAccessPolicy -BodyParameter $policyDefinition
+    New-MgIdentityConditionalAccessPolicy @params
     Write-Output "Created new policy: $($policyDefinition.displayName)"
 }
