@@ -1,30 +1,15 @@
-# === Step 2: Load policy JSON ===
-$policyPath = "./policies/policy.json"
-if (-not (Test-Path $policyPath)) {
-    throw "Policy file not found at $policyPath"
-}
-$policyJsonRaw = Get-Content $policyPath -Raw
-$policyObject = $policyJsonRaw | ConvertFrom-Json
-$policyName = $policyObject.displayName
+# Get policy definition from repository
+$policyDefinition = Get-Content -Path "./policies/policy.ps1" | ConvertFrom-Json
 
-# === Step 3: Check if policy exists ===
-$response = Invoke-RestMethod -Method Get -Uri "https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies" -Headers $headers
-$existingPolicy = $response.value | Where-Object { $_.displayName -eq $policyName }
+# Check if policy already exists
+$existingPolicy = Get-MgIdentityConditionalAccessPolicy | Where-Object {$_.DisplayName -eq $policyDefinition.displayName}
 
-# === Step 4: Update or Create policy ===
 if ($existingPolicy) {
-    $policyId = $existingPolicy.id
-    Write-Output "🔁 Updating existing policy: $policyName"
-    Invoke-RestMethod -Method Patch `
-        -Uri "https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies/$policyId" `
-        -Headers $headers `
-        -Body $policyJsonRaw
-    Write-Output "✅ Policy updated: $policyName"
+    # Update existing policy
+    Update-MgIdentityConditionalAccessPolicy -ConditionalAccessPolicyId $existingPolicy.Id -BodyParameter $policyDefinition
+    Write-Output "Updated existing policy: $($policyDefinition.displayName)"
 } else {
-    Write-Output "➕ Creating new policy: $policyName"
-    Invoke-RestMethod -Method Post `
-        -Uri "https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies" `
-        -Headers $headers `
-        -Body $policyJsonRaw
-    Write-Output "✅ Policy created: $policyName"
+    # Create new policy
+    New-MgIdentityConditionalAccessPolicy -BodyParameter $policyDefinition
+    Write-Output "Created new policy: $($policyDefinition.displayName)"
 }
