@@ -16,7 +16,14 @@ jobs:
       - name: Azure Login
         uses: azure/login@v1
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          enable-AzPSSession: true 
+          allow-no-subscriptions: true
+      
+      - name: Add Azure CLI Microsoft Graph Extension
+        run: az extension add --name account
 
       - name: Install Microsoft Graph PowerShell modules
         run: |
@@ -25,8 +32,12 @@ jobs:
         shell: pwsh
         
       - name: Deploy Conditional Access Policy
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
         run: |
-          Connect-MgGraph -ClientId ${{ secrets.AZURE_CLIENT_ID }} -TenantId ${{ secrets.AZURE_TENANT_ID }} -ClientSecret ${{ secrets.AZURE_CLIENT_SECRET }}
-          # Example deployment script
+          Connect-MgGraph -ClientId $env:AZURE_CLIENT_ID -TenantId $env:AZURE_TENANT_ID -ClientSecret $env:AZURE_CLIENT_SECRET
+          # Execute the deployment script
           ./scripts/deploy-policy.ps1
         shell: pwsh
