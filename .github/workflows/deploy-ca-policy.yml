@@ -6,6 +6,11 @@ on:
       - 'policies/**'
   workflow_dispatch:
 
+# Add these permissions for OIDC authentication
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
