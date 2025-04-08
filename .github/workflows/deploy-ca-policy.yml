@@ -6,11 +6,6 @@ on:
       - 'policies/**'
   workflow_dispatch:
 
-# Add these permissions for OIDC authentication
-permissions:
-  id-token: write
-  contents: read
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -18,21 +13,9 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v3
       
-      - name: Azure Login
-        uses: azure/login@v1
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          enable-AzPSSession: true 
-          allow-no-subscriptions: true
-      
-      - name: Add Azure CLI Microsoft Graph Extension
-        run: az extension add --name account
-
       - name: Install Microsoft Graph PowerShell modules
         run: |
-          Install-Module Microsoft.Graph.Identity.SignIns -Force
+          Install-Module Microsoft.Graph.Identity.SignIns -Force -Scope CurrentUser
           Import-Module Microsoft.Graph.Identity.SignIns
         shell: pwsh
         

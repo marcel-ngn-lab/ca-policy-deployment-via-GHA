@@ -1,18 +1,20 @@
-$ApplicationId = "${{ secrets.AZURE_CLIENT_ID }}"
-$SecuredPassword = "${{ secrets.AZURE_CLIENT_SECRET }}"
-$tenantID = "${{ secrets.AZURE_TENANT_ID }}"
+# Get credentials from environment variables
+$ApplicationId = $env:AZURE_CLIENT_ID
+$SecuredPassword = $env:AZURE_CLIENT_SECRET
+$tenantID = $env:AZURE_TENANT_ID
 
-$SecuredPasswordPassword = ConvertTo-SecureString `
--String $SecuredPassword -AsPlainText -Force
+# Create secure credential
+$SecuredPasswordPassword = ConvertTo-SecureString -String $SecuredPassword -AsPlainText -Force
+$ClientSecretCredential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $ApplicationId, $SecuredPasswordPassword
 
-$ClientSecretCredential = New-Object `
--TypeName System.Management.Automation.PSCredential `
--ArgumentList $ApplicationId, $SecuredPasswordPassword
+# Connect to Microsoft Graph
 Connect-MgGraph -TenantId $tenantID -ClientSecretCredential $ClientSecretCredential
-# Execute the deployment script
 
 # Get policy definition from repository
-$policyDefinition = Get-Content -Path "./policies/policy.ps1"
+# This should be a JSON file, not a PS1 file
+$policyPath = "./policies/policy.json"
+$policyContent = Get-Content -Path $policyPath -Raw
+$policyDefinition = $policyContent | ConvertFrom-Json
 
 # Check if policy already exists
 $existingPolicy = Get-MgIdentityConditionalAccessPolicy | Where-Object {$_.DisplayName -eq $policyDefinition.displayName}
