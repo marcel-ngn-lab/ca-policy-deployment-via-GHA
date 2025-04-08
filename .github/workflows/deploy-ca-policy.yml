@@ -25,5 +25,5 @@ jobs:
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
         run: |
-          ./scripts/deploy-policy.ps1
+          ./scripts/deploy-policy_v2.ps1
         shell: pwsh

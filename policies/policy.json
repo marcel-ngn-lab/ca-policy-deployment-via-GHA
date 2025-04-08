@@ -1,24 +1,43 @@
 {
-  "displayName": "Require MFA for all users",
-  "state": "enabled",
+  "displayName": "Block Legacy Authentication",
+  "state": "enabledForReportingButNotEnforced",
   "conditions": {
-    "clientAppTypes": ["browser", "mobileAppsAndDesktopClients"],
+    "userRiskLevels": [],
+    "signInRiskLevels": [],
+    "clientAppTypes": [
+      "exchangeActiveSync",
+      "other"
+    ],
+    "platforms": null,
+    "locations": null,
+    "deviceStates": null,
     "applications": {
-      "includeApplications": ["All"]
+      "includeApplications": [
+        "All"
+      ],
+      "excludeApplications": [],
+      "includeUserActions": []
     },
     "users": {
-      "includeUsers": ["All"],
-      "excludeUsers": ["<service-principal-id>"]
-    },
-    "locations": {
-      "includeLocations": ["All"]
-    },
-    "platforms": {
-      "includePlatforms": ["all"]
+      "includeUsers": [
+        "All"
+      ],
+      "excludeUsers": [],
+      "includeGroups": [],
+      "excludeGroups": [
+        "a1001d13-288e-4803-b5b8-f54d4d37891e" 
+      ],
+      "includeRoles": [],
+      "excludeRoles": []
     }
   },
   "grantControls": {
     "operator": "OR",
-    "builtInControls": ["mfa"]
-  }
+    "builtInControls": [
+      "block"
+    ],
+    "customAuthenticationFactors": [],
+    "termsOfUse": []
+  },
+  "sessionControls": null
 }

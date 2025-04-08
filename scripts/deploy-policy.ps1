@@ -38,3 +38,6 @@ if ($existingPolicy) {
     New-MgIdentityConditionalAccessPolicy -BodyParameter $policyHashtable
     Write-Output "Created new policy: $policyDisplayName"
 }
+
+
+
