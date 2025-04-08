@@ -11,20 +11,30 @@ $ClientSecretCredential = New-Object -TypeName System.Management.Automation.PSCr
 Connect-MgGraph -TenantId $tenantID -ClientSecretCredential $ClientSecretCredential
 
 # Get policy definition from repository
-# This should be a JSON file, not a PS1 file
 $policyPath = "./policies/policy.json"
 $policyContent = Get-Content -Path $policyPath -Raw
 $policyDefinition = $policyContent | ConvertFrom-Json
 
+# Extract the displayName for comparison
+$policyDisplayName = $policyDefinition.displayName
+
 # Check if policy already exists
-$existingPolicy = Get-MgIdentityConditionalAccessPolicy | Where-Object {$_.DisplayName -eq $policyDefinition.displayName}
+$existingPolicy = Get-MgIdentityConditionalAccessPolicy | Where-Object {$_.DisplayName -eq $policyDisplayName}
+
+# Convert the JSON string directly to a hashtable for the BodyParameter
+$policyHashtable = @{}
+$policyDefinition.PSObject.Properties | ForEach-Object {
+    $policyHashtable[$_.Name] = $_.Value
+}
 
 if ($existingPolicy) {
     # Update existing policy
-    Update-MgIdentityConditionalAccessPolicy -ConditionalAccessPolicyId $existingPolicy.Id -BodyParameter $policyDefinition
-    Write-Output "Updated existing policy: $($policyDefinition.displayName)"
+    Write-Output "Found existing policy with ID: $($existingPolicy.Id)"
+    Update-MgIdentityConditionalAccessPolicy -ConditionalAccessPolicyId $existingPolicy.Id -BodyParameter $policyHashtable
+    Write-Output "Updated existing policy: $policyDisplayName"
 } else {
     # Create new policy
-    New-MgIdentityConditionalAccessPolicy -BodyParameter $policyDefinition
-    Write-Output "Created new policy: $($policyDefinition.displayName)"
+    Write-Output "No existing policy found. Creating new policy: $policyDisplayName"
+    New-MgIdentityConditionalAccessPolicy -BodyParameter $policyHashtable
+    Write-Output "Created new policy: $policyDisplayName"
 }
