@@ -1,3 +1,16 @@
+$ApplicationId = "${{ secrets.AZURE_CLIENT_ID }}"
+$SecuredPassword = "${{ secrets.AZURE_CLIENT_SECRET }}"
+$tenantID = "${{ secrets.AZURE_TENANT_ID }}"
+
+$SecuredPasswordPassword = ConvertTo-SecureString `
+-String $SecuredPassword -AsPlainText -Force
+
+$ClientSecretCredential = New-Object `
+-TypeName System.Management.Automation.PSCredential `
+-ArgumentList $ApplicationId, $SecuredPasswordPassword
+Connect-MgGraph -TenantId $tenantID -ClientSecretCredential $ClientSecretCredential
+# Execute the deployment script
+
 # Get policy definition from repository
 $policyDefinition = Get-Content -Path "./policies/policy.ps1"
 

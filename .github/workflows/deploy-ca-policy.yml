@@ -42,17 +42,5 @@ jobs:
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
         run: |
-          $ApplicationId = "${{ secrets.AZURE_CLIENT_ID }}"
-                $SecuredPassword = "${{ secrets.AZURE_CLIENT_SECRET }}"
-                $tenantID = "${{ secrets.AZURE_TENANT_ID }}"
-
-                $SecuredPasswordPassword = ConvertTo-SecureString `
-                -String $SecuredPassword -AsPlainText -Force
-
-                $ClientSecretCredential = New-Object `
-                -TypeName System.Management.Automation.PSCredential `
-                -ArgumentList $ApplicationId, $SecuredPasswordPassword
-          Connect-MgGraph -TenantId $tenantID -ClientSecretCredential $ClientSecretCredential
-          # Execute the deployment script
           ./scripts/deploy-policy.ps1
         shell: pwsh
