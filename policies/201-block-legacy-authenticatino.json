@@ -1,5 +1,5 @@
 {
-  "displayName": "Block Legacy Authentication",
+  "displayName": "02 - Block Legacy Authentication",
   "state": "enabledForReportingButNotEnforced",
   "conditions": {
     "userRiskLevels": [],
