@@ -1,6 +1,6 @@
 {
     "displayName": "01 - Require MFA for All Privileged Roles",
-    "state": "enabledForReportingButNotEnforced",
+    "state": "enabled",
     "conditions": {
       "userRiskLevels": [],
       "signInRiskLevels": [],
