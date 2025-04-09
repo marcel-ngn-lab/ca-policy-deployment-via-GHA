@@ -1,6 +1,6 @@
 {
   "displayName": "GH - 02 - Block Legacy Authentication",
-  "state": "enabled",
+  "state": "enabledForReportingButNotEnforced",
   "conditions": {
     "userRiskLevels": [],
     "signInRiskLevels": [],

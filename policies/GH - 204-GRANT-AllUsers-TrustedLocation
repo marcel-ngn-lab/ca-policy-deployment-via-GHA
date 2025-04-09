@@ -1,0 +1,33 @@
+{
+  "displayName": "GH - 04 - Allow access only from Germany",
+  "state": "enabled",
+  "conditions": {
+    "users": {
+      "includeUsers": ["All"],
+      "excludeUsers": [],
+      "includeGroups": [],
+      "excludeGroups": [
+        "a1001d13-288e-4803-b5b8-f54d4d37891e" 
+      ]
+    },
+    "applications": {
+      "includeApplications": ["All"]
+    },
+    "locations": {
+      "includeLocations": ["germany"],
+      "excludeLocations": []
+    },
+    "platforms": null,
+    "clientAppTypes": ["all"],
+    "devices": null,
+    "userRiskLevels": [],
+    "signInRiskLevels": []
+  },
+  "grantControls": {
+    "operator": "OR",
+    "builtInControls": ["block"],
+    "customAuthenticationFactors": [],
+    "termsOfUse": []
+  },
+  "sessionControls": null
+}
