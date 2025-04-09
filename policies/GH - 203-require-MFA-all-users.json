@@ -1,5 +1,5 @@
 {
-  "displayName": "03 - Require MFA for All Users",
+  "displayName": "GH - 03 - Require MFA for All Users",
   "state": "enabled",
   "conditions": {
     "userRiskLevels": [],

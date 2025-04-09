@@ -8,7 +8,7 @@ $SecuredPasswordPassword = ConvertTo-SecureString -String $SecuredPassword -AsPl
 $ClientSecretCredential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $ApplicationId, $SecuredPasswordPassword
 
 # Connect to Microsoft Graph
-Connect-MgGraph -TenantId $tenantID -ClientSecretCredential $ClientSecretCredential
+Connect-MgGraph -TenantId $tenantID -ClientSecretCredential $ClientSecretCredential | Out-Null
 
 # Define the path to the directory containing your JSON files
 $jsonFilesDirectory = "./policies/"

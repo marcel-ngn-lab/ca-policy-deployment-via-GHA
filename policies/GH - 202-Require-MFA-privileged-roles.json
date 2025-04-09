@@ -1,5 +1,5 @@
 {
-    "displayName": "01 - Require MFA for All Privileged Roles",
+    "displayName": "GH - 01 - Require MFA for All Privileged Roles",
     "state": "enabled",
     "conditions": {
       "userRiskLevels": [],

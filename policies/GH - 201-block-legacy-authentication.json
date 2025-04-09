@@ -1,5 +1,5 @@
 {
-  "displayName": "02 - Block Legacy Authentication",
+  "displayName": "GH - 02 - Block Legacy Authentication",
   "state": "enabled",
   "conditions": {
     "userRiskLevels": [],
