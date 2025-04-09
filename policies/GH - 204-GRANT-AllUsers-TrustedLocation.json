@@ -14,7 +14,7 @@
       "includeApplications": ["All"]
     },
     "locations": {
-      "includeLocations": ["Germany"],
+      "includeLocations": ["1a70e71e-4dc9-4a04-8390-18eb303bfe7c"],
       "excludeLocations": []
     },
     "platforms": null,
