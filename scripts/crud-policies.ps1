@@ -45,7 +45,7 @@ if ($jsonFiles.Count -gt 0) {
 # First, process existing policies that need to be updated or removed
 foreach ($existingPolicy in $existingPolicies) {
     # Skip policies that don't follow our managed naming convention (optional)
-    if (!$existingPolicy.DisplayName.StartsWith("[GH]")) { continue }
+    #if (!$existingPolicy.DisplayName.StartsWith("[GH]")) { continue }
     
     if ($definedPolicies.ContainsKey($existingPolicy.DisplayName)) {
         # Policy exists in repo - it will be processed in the next loop
