@@ -46,6 +46,82 @@ if ($jsonFiles.Count -gt 0) {
     }
 }
 
+# Helper function to normalize objects for comparison
+function Normalize-PolicyObject {
+    param (
+        [Parameter(Mandatory = $true)]
+        [PSCustomObject]$PolicyObject
+    )
+    
+    # Create a clean normalized object
+    $normalized = @{
+        displayName = $null
+        state = $null
+        conditions = @{}
+        grantControls = @{}
+        sessionControls = $null
+    }
+    
+    # Handle displayName - could be DisplayName or displayName
+    if ($PolicyObject.PSObject.Properties.Name -contains "DisplayName") {
+        $normalized.displayName = $PolicyObject.DisplayName
+    } elseif ($PolicyObject.PSObject.Properties.Name -contains "displayName") {
+        $normalized.displayName = $PolicyObject.displayName
+    }
+    
+    # Handle state - could be State or state
+    if ($PolicyObject.PSObject.Properties.Name -contains "State") {
+        $normalized.state = $PolicyObject.State.ToLower()
+    } elseif ($PolicyObject.PSObject.Properties.Name -contains "state") {
+        $normalized.state = $PolicyObject.state.ToLower()
+    }
+    
+    # Handle conditions - could be Conditions or conditions
+    $conditionsProperty = $null
+    if ($PolicyObject.PSObject.Properties.Name -contains "Conditions") {
+        $conditionsProperty = $PolicyObject.Conditions
+    } elseif ($PolicyObject.PSObject.Properties.Name -contains "conditions") {
+        $conditionsProperty = $PolicyObject.conditions
+    }
+    
+    if ($null -ne $conditionsProperty) {
+        # Only include non-null values
+        $conditionProperties = $conditionsProperty | Get-Member -MemberType Properties | Select-Object -ExpandProperty Name
+        foreach ($prop in $conditionProperties) {
+            if ($null -ne $conditionsProperty.$prop) {
+                $normalized.conditions[$prop] = $conditionsProperty.$prop
+            }
+        }
+    }
+    
+    # Handle grantControls - could be GrantControls or grantControls
+    $grantControlsProperty = $null
+    if ($PolicyObject.PSObject.Properties.Name -contains "GrantControls") {
+        $grantControlsProperty = $PolicyObject.GrantControls
+    } elseif ($PolicyObject.PSObject.Properties.Name -contains "grantControls") {
+        $grantControlsProperty = $PolicyObject.grantControls
+    }
+    
+    if ($null -ne $grantControlsProperty) {
+        # Only include non-null values
+        $grantControlProperties = $grantControlsProperty | Get-Member -MemberType Properties | Select-Object -ExpandProperty Name
+        foreach ($prop in $grantControlProperties) {
+            if ($null -ne $grantControlsProperty.$prop) {
+                $normalized.grantControls[$prop] = $grantControlsProperty.$prop
+            }
+        }
+    }
+    
+    # Handle sessionControls - could be SessionControls or sessionControls
+    if ($PolicyObject.PSObject.Properties.Name -contains "SessionControls") {
+        $normalized.sessionControls = $PolicyObject.SessionControls
+    } elseif ($PolicyObject.PSObject.Properties.Name -contains "sessionControls") {
+        $normalized.sessionControls = $PolicyObject.sessionControls
+    }
+    
+    return $normalized
+}
+
 # First, process existing policies that need to be updated or removed
 foreach ($existingPolicy in $existingPolicies) {
     # Skip policies that don't follow our managed naming convention
@@ -92,24 +168,72 @@ foreach ($jsonFile in $jsonFiles) {
         $existingPolicy = $existingPolicies | Where-Object { $_.DisplayName -eq $policyJson.displayName }
 
         if ($existingPolicy) {
-            # Compare policy properties to detect changes
-            $existingPolicyJson = $existingPolicy | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+            # Normalize both objects for comparison
+            $normalizedExisting = Normalize-PolicyObject -PolicyObject $existingPolicy
+            $normalizedNew = Normalize-PolicyObject -PolicyObject $policyObject
             
-            # Create comparable objects with only the fields we care about
-            $existingPolicyCompare = [PSCustomObject]@{
-                displayName     = $existingPolicyJson.DisplayName
-                conditions      = $existingPolicyJson.Conditions
-                grantControls   = $existingPolicyJson.GrantControls
-                sessionControls = $existingPolicyJson.SessionControls
-                state           = $existingPolicyJson.State
+            # Convert to JSON for comparison, but sort properties to ensure consistent order
+            $existingJson = $normalizedExisting | ConvertTo-Json -Depth 10 -Compress
+            $newJson = $normalizedNew | ConvertTo-Json -Depth 10 -Compress
+            
+            # Debug - uncomment to see the JSON comparison
+            #Write-Host "Existing: $existingJson"
+            #Write-Host "New: $newJson"
+            
+            # Compare using a more focused approach
+            $isEqual = $true
+            
+            # Compare state
+            if ($normalizedExisting.state -ne $normalizedNew.state) {
+                $isEqual = $false
+                Write-Host "  - State differs: '$($normalizedExisting.state)' vs '$($normalizedNew.state)'" -ForegroundColor Gray
             }
             
-            # Convert to string representations for comparison
-            $existingPolicyString = ($existingPolicyCompare | ConvertTo-Json -Depth 10 -Compress)
-            $newPolicyString = ($policyObject | ConvertTo-Json -Depth 10 -Compress)
+            # Compare conditions
+            $existingCondKeys = $normalizedExisting.conditions.Keys
+            $newCondKeys = $normalizedNew.conditions.Keys
+            if (($existingCondKeys | Sort-Object) -join ',' -ne ($newCondKeys | Sort-Object) -join ',') {
+                $isEqual = $false
+                Write-Host "  - Condition keys differ" -ForegroundColor Gray
+            } else {
+                foreach ($key in $existingCondKeys) {
+                    $existingCondJson = $normalizedExisting.conditions[$key] | ConvertTo-Json -Depth 10 -Compress
+                    $newCondJson = $normalizedNew.conditions[$key] | ConvertTo-Json -Depth 10 -Compress
+                    if ($existingCondJson -ne $newCondJson) {
+                        $isEqual = $false
+                        Write-Host "  - Condition '$key' differs" -ForegroundColor Gray
+                    }
+                }
+            }
             
-            # Compare the policies
-            if ($existingPolicyString -eq $newPolicyString) {
+            # Compare grant controls
+            $existingGrantKeys = $normalizedExisting.grantControls.Keys
+            $newGrantKeys = $normalizedNew.grantControls.Keys
+            if (($existingGrantKeys | Sort-Object) -join ',' -ne ($newGrantKeys | Sort-Object) -join ',') {
+                $isEqual = $false
+                Write-Host "  - Grant control keys differ" -ForegroundColor Gray
+            } else {
+                foreach ($key in $existingGrantKeys) {
+                    $existingGrantJson = $normalizedExisting.grantControls[$key] | ConvertTo-Json -Depth 10 -Compress
+                    $newGrantJson = $normalizedNew.grantControls[$key] | ConvertTo-Json -Depth 10 -Compress
+                    if ($existingGrantJson -ne $newGrantJson) {
+                        $isEqual = $false
+                        Write-Host "  - Grant control '$key' differs" -ForegroundColor Gray
+                    }
+                }
+            }
+            
+            # Compare session controls
+            if ($null -ne $normalizedExisting.sessionControls -or $null -ne $normalizedNew.sessionControls) {
+                $existingSessionJson = $normalizedExisting.sessionControls | ConvertTo-Json -Depth 10 -Compress
+                $newSessionJson = $normalizedNew.sessionControls | ConvertTo-Json -Depth 10 -Compress
+                if ($existingSessionJson -ne $newSessionJson) {
+                    $isEqual = $false
+                    Write-Host "  - Session controls differ" -ForegroundColor Gray
+                }
+            }
+            
+            if ($isEqual) {
                 # Policy is unchanged
                 Write-Host "Policy unchanged: $($policyJson.displayName)" -ForegroundColor Blue
                 $unchanged++
