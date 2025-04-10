@@ -41,6 +41,7 @@ jobs:
           NTFY_URL: ${{ secrets.NTFY_URL }}
           WORKFLOW_NAME: ${{ github.workflow }}
           RUN_ID: ${{ github.run_id }}
+          
         run: |
           ./scripts/crud-policies.ps1
         shell: pwsh
