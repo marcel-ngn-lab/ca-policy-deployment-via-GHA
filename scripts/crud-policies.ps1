@@ -2,13 +2,16 @@
 $ApplicationId = $env:AZURE_CLIENT_ID
 $SecuredPassword = $env:AZURE_CLIENT_SECRET
 $tenantID = $env:AZURE_TENANT_ID
+$ntfyUrl = $env:NTFY_URL
+$workflowName = $env:WORKFLOW_NAME
+$runId = $env:RUN_ID
 
 # Create secure credential
 $SecuredPasswordPassword = ConvertTo-SecureString -String $SecuredPassword -AsPlainText -Force
 $ClientSecretCredential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $ApplicationId, $SecuredPasswordPassword
 
 # Connect to Microsoft Graph
-Connect-MgGraph -TenantId $tenantID -ClientSecretCredential $ClientSecretCredential | Out-Null
+Connect-MgGraph -TenantId $tenantID -ClientSecretCredential $ClientSecretCredential
 
 # Define the path to the directory containing your JSON files
 $jsonFilesDirectory = "./policies/"
@@ -44,8 +47,8 @@ if ($jsonFiles.Count -gt 0) {
 
 # First, process existing policies that need to be updated or removed
 foreach ($existingPolicy in $existingPolicies) {
-    # Skip policies that don't follow our managed naming convention (optional)
-    if (!$existingPolicy.DisplayName.StartsWith("GH")) { continue }
+    # Skip policies that don't follow our managed naming convention
+    if (!$existingPolicy.DisplayName.StartsWith("GH - ")) { continue }
     
     if ($definedPolicies.ContainsKey($existingPolicy.DisplayName)) {
         # Policy exists in repo - it will be processed in the next loop
@@ -111,21 +114,6 @@ foreach ($jsonFile in $jsonFiles) {
     }
 }
 
-# Create a summary JSON for notification
-$summaryObject = @{
-    created = $created
-    updated = $updated
-    removed = $removed
-    failed = $failed
-    timestamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
-    details = $summary
-}
-
-# Save to summary file
-$summaryObject | ConvertTo-Json -Depth 10 | Out-File -FilePath "deployment-summary.json"
-Write-Host "Deployment summary saved to deployment-summary.json"
-
-
 # Print summary
 Write-Host "`nDEPLOYMENT SUMMARY:" -ForegroundColor Cyan
 Write-Host "Policies Created: $created" -ForegroundColor Green
@@ -134,3 +122,58 @@ Write-Host "Policies Removed: $removed" -ForegroundColor Magenta
 Write-Host "Operations Failed: $failed" -ForegroundColor $(if ($failed -gt 0) { "Red" } else { "Green" })
 Write-Host "`nDetailed Results:" -ForegroundColor Cyan
 $summary | ForEach-Object { Write-Host $_ }
+
+# Send notification
+Write-Host "`nSending notification..." -ForegroundColor Cyan
+
+# Build detailed message
+if ($failed -gt 0) {
+    $title = "CA Policy Deployment Completed with Errors"
+    $priority = "high"
+    $tags = "warning"
+} else {
+    $title = "CA Policy Deployment Successful"
+    $priority = "default"
+    $tags = "white_check_mark"
+}
+
+$timestamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+
+$message = @"
+## Conditional Access Policy Deployment Summary
+
+**Time**: $timestamp
+**Workflow**: $workflowName
+**Run ID**: $runId
+
+### Results:
+- ✅ Created: $created
+- 🔄 Updated: $updated
+- 🗑️ Removed: $removed
+- ❌ Failed: $failed
+
+"@
+
+# Add details if there are any
+if ($summary.Count -gt 0) {
+    $message += "### Details:`n"
+    foreach ($detail in $summary) {
+        $message += "- $detail`n"
+    }
+}
+
+# Send notification
+$headers = @{
+    "Title" = $title
+    "Priority" = $priority
+    "Tags" = $tags
+}
+
+try {
+    Write-Host "Sending notification to $ntfyUrl" -ForegroundColor Cyan
+    Invoke-RestMethod -Method Post -Uri $ntfyUrl -Headers $headers -Body $message
+    Write-Host "Notification sent successfully" -ForegroundColor Green
+} catch {
+    Write-Host "Failed to send notification: $_" -ForegroundColor Red
+    # Continue execution even if notification fails
+}

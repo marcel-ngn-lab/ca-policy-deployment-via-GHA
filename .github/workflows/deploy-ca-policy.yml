@@ -18,7 +18,7 @@ jobs:
         shell: pwsh
         run: ./scripts/validate-policies.ps1
   
-  # Second job - deploy policies
+  # Second job - deploy policies and notify
   deploy:
     needs: validate
     runs-on: ubuntu-latest
@@ -32,46 +32,15 @@ jobs:
           Import-Module Microsoft.Graph.Identity.SignIns
         shell: pwsh
         
-      - name: Deploy Conditional Access Policies
+      - name: Deploy Conditional Access Policies and Send Notification
         id: deploy-policy
         env:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          NTFY_URL: ${{ secrets.NTFY_URL }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          RUN_ID: ${{ github.run_id }}
         run: |
           ./scripts/crud-policies.ps1
         shell: pwsh
-      
-      # Upload summary as artifact
-      - name: Upload deployment summary
-        if: always()
-        uses: actions/upload-artifact@v2
-        with:
-          name: deployment-summary
-          path: deployment-summary.json
-          retention-days: 5
-
-  # Third job - send notification
-  notify:
-    needs: deploy
-    if: always() 
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v3
-      
-      # Download summary from previous job
-      - name: Download deployment summary
-        if: always()
-        uses: actions/download-artifact@v2
-        with:
-          name: deployment-summary
-      
-      - name: Send detailed notification
-        shell: pwsh
-        run: |
-          ./scripts/send-notification.ps1 `
-            -NtfyUrl "${{ secrets.NTFY_URL }}" `
-            -SummaryFilePath "deployment-summary.json" `
-            -WorkflowName "${{ github.workflow }}" `
-            -RunId "${{ github.run_id }}"
