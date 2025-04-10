@@ -7,6 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
+  # First job - validate policies
   validate:
     runs-on: ubuntu-latest
     steps:
@@ -16,7 +17,8 @@ jobs:
       - name: Validate policy naming convention
         shell: pwsh
         run: ./scripts/validate-policies.ps1
-
+  
+  # Second job - deploy policies
   deploy:
     needs: validate
     runs-on: ubuntu-latest
@@ -30,11 +32,35 @@ jobs:
           Import-Module Microsoft.Graph.Identity.SignIns
         shell: pwsh
         
-      - name: Deploy Conditional Access Policies
+      - name: Deploy Conditional Access Policy
+        id: deploy-policy
         env:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
         run: |
-          ./scripts/crud-policies.ps1
+          ./scripts/deploy-policy.ps1
         shell: pwsh
+
+  # Third job - send notification
+  notify:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send success notification
+        if: success()
+        run: |
+          curl -H "Title: CA Policy Deployment Successful" \
+               -H "Priority: default" \
+               -H "Tags: white_check_mark" \
+               -d "Conditional Access Policies have been successfully deployed to Azure. Workflow: ${{ github.workflow }} / Run: ${{ github.run_id }}" \
+               ${{ secrets.NTFY_URL }}
+      
+      - name: Send failure notification
+        if: failure()
+        run: |
+          curl -H "Title: CA Policy Deployment Failed" \
+               -H "Priority: high" \
+               -H "Tags: x" \
+               -d "Conditional Access Policy deployment to Azure has failed. Please check the workflow logs. Workflow: ${{ github.workflow }} / Run: ${{ github.run_id }}" \
+               ${{ secrets.NTFY_URL }}
