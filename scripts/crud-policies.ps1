@@ -11,7 +11,7 @@ $SecuredPasswordPassword = ConvertTo-SecureString -String $SecuredPassword -AsPl
 $ClientSecretCredential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $ApplicationId, $SecuredPasswordPassword
 
 # Connect to Microsoft Graph
-Connect-MgGraph -TenantId $tenantID -ClientSecretCredential $ClientSecretCredential
+Connect-MgGraph -TenantId $tenantID -ClientSecretCredential $ClientSecretCredential | Out-Null
 
 # Define the path to the directory containing your JSON files
 $jsonFilesDirectory = "./policies/"
@@ -22,6 +22,7 @@ $jsonFiles = Get-ChildItem -Path $jsonFilesDirectory -Filter *.json
 # Initialize counters for summary
 $created = 0
 $updated = 0
+$unchanged = 0
 $removed = 0
 $failed = 0
 $summary = @()
@@ -91,12 +92,36 @@ foreach ($jsonFile in $jsonFiles) {
         $existingPolicy = $existingPolicies | Where-Object { $_.DisplayName -eq $policyJson.displayName }
 
         if ($existingPolicy) {
-            # Update the existing policy
-            Write-Host "Policy already exists: $($policyJson.displayName) - Updating..." -ForegroundColor Yellow
-            $null = Update-MgIdentityConditionalAccessPolicy -ConditionalAccessPolicyId $existingPolicy.Id -Body $policyJsonString
-            Write-Host "Policy updated successfully: $($policyJson.displayName)" -ForegroundColor Green
-            $updated++
-            $summary += "UPDATED: $($policyJson.displayName)"
+            # Compare policy properties to detect changes
+            $existingPolicyJson = $existingPolicy | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+            
+            # Create comparable objects with only the fields we care about
+            $existingPolicyCompare = [PSCustomObject]@{
+                displayName     = $existingPolicyJson.DisplayName
+                conditions      = $existingPolicyJson.Conditions
+                grantControls   = $existingPolicyJson.GrantControls
+                sessionControls = $existingPolicyJson.SessionControls
+                state           = $existingPolicyJson.State
+            }
+            
+            # Convert to string representations for comparison
+            $existingPolicyString = ($existingPolicyCompare | ConvertTo-Json -Depth 10 -Compress)
+            $newPolicyString = ($policyObject | ConvertTo-Json -Depth 10 -Compress)
+            
+            # Compare the policies
+            if ($existingPolicyString -eq $newPolicyString) {
+                # Policy is unchanged
+                Write-Host "Policy unchanged: $($policyJson.displayName)" -ForegroundColor Blue
+                $unchanged++
+                $summary += "UNCHANGED: $($policyJson.displayName)"
+            } else {
+                # Update the existing policy
+                Write-Host "Policy has changed: $($policyJson.displayName) - Updating..." -ForegroundColor Yellow
+                $null = Update-MgIdentityConditionalAccessPolicy -ConditionalAccessPolicyId $existingPolicy.Id -Body $policyJsonString
+                Write-Host "Policy updated successfully: $($policyJson.displayName)" -ForegroundColor Green
+                $updated++
+                $summary += "UPDATED: $($policyJson.displayName)"
+            }
         } else {
             # Create a new policy
             Write-Host "Creating new policy: $($policyJson.displayName)" -ForegroundColor Cyan
@@ -118,6 +143,7 @@ foreach ($jsonFile in $jsonFiles) {
 Write-Host "`nDEPLOYMENT SUMMARY:" -ForegroundColor Cyan
 Write-Host "Policies Created: $created" -ForegroundColor Green
 Write-Host "Policies Updated: $updated" -ForegroundColor Yellow
+Write-Host "Policies Unchanged: $unchanged" -ForegroundColor Blue
 Write-Host "Policies Removed: $removed" -ForegroundColor Magenta
 Write-Host "Operations Failed: $failed" -ForegroundColor $(if ($failed -gt 0) { "Red" } else { "Green" })
 Write-Host "`nDetailed Results:" -ForegroundColor Cyan
@@ -149,6 +175,7 @@ $message = @"
 ### Results:
 - ✅ Created: $created
 - 🔄 Updated: $updated
+- 📋 Unchanged: $unchanged
 - 🗑️ Removed: $removed
 - ❌ Failed: $failed
 
