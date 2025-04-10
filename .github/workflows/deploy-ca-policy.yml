@@ -50,6 +50,12 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v3
+      # Download summary from previous job
+      - name: Download deployment summary
+        if: always()
+        uses: actions/download-artifact@v3
+        with:
+          name: deployment-summary
         
       - name: Send detailed notification
         shell: pwsh
