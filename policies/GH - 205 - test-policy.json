@@ -1,5 +1,5 @@
 {
-    "displayName": "05 - Test Policy",
+    "displayName": "GH - 05 - Test Policy",
     "state": "enabledForReportingButNotEnforced",
     "conditions": {
       "userRiskLevels": [],
