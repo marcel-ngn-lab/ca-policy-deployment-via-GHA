@@ -111,6 +111,21 @@ foreach ($jsonFile in $jsonFiles) {
     }
 }
 
+# Create a summary JSON for notification
+$summaryObject = @{
+    created = $created
+    updated = $updated
+    removed = $removed
+    failed = $failed
+    timestamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+    details = $summary
+}
+
+# Save to summary file
+$summaryObject | ConvertTo-Json -Depth 10 | Out-File -FilePath "deployment-summary.json"
+Write-Host "Deployment summary saved to deployment-summary.json"
+
+
 # Print summary
 Write-Host "`nDEPLOYMENT SUMMARY:" -ForegroundColor Cyan
 Write-Host "Policies Created: $created" -ForegroundColor Green
