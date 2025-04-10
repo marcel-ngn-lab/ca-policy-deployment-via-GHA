@@ -7,7 +7,18 @@ on:
   workflow_dispatch:
 
 jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+      
+      - name: Validate policy naming convention
+        shell: pwsh
+        run: ./scripts/validate-policies.ps1
+
   deploy:
+    needs: validate
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
