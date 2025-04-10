@@ -32,14 +32,14 @@ jobs:
           Import-Module Microsoft.Graph.Identity.SignIns
         shell: pwsh
         
-      - name: Deploy Conditional Access Policy
+      - name: Deploy Conditional Access Policies
         id: deploy-policy
         env:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
         run: |
-          ./scripts/deploy-policy.ps1
+          ./scripts/crud-policies.ps1
         shell: pwsh
 
   # Third job - send notification
