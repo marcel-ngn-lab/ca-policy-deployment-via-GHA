@@ -46,82 +46,6 @@ if ($jsonFiles.Count -gt 0) {
     }
 }
 
-# Helper function to normalize objects for comparison
-function Normalize-PolicyObject {
-    param (
-        [Parameter(Mandatory = $true)]
-        [PSCustomObject]$PolicyObject
-    )
-    
-    # Create a clean normalized object
-    $normalized = @{
-        displayName = $null
-        state = $null
-        conditions = @{}
-        grantControls = @{}
-        sessionControls = $null
-    }
-    
-    # Handle displayName - could be DisplayName or displayName
-    if ($PolicyObject.PSObject.Properties.Name -contains "DisplayName") {
-        $normalized.displayName = $PolicyObject.DisplayName
-    } elseif ($PolicyObject.PSObject.Properties.Name -contains "displayName") {
-        $normalized.displayName = $PolicyObject.displayName
-    }
-    
-    # Handle state - could be State or state
-    if ($PolicyObject.PSObject.Properties.Name -contains "State") {
-        $normalized.state = $PolicyObject.State.ToLower()
-    } elseif ($PolicyObject.PSObject.Properties.Name -contains "state") {
-        $normalized.state = $PolicyObject.state.ToLower()
-    }
-    
-    # Handle conditions - could be Conditions or conditions
-    $conditionsProperty = $null
-    if ($PolicyObject.PSObject.Properties.Name -contains "Conditions") {
-        $conditionsProperty = $PolicyObject.Conditions
-    } elseif ($PolicyObject.PSObject.Properties.Name -contains "conditions") {
-        $conditionsProperty = $PolicyObject.conditions
-    }
-    
-    if ($null -ne $conditionsProperty) {
-        # Only include non-null values
-        $conditionProperties = $conditionsProperty | Get-Member -MemberType Properties | Select-Object -ExpandProperty Name
-        foreach ($prop in $conditionProperties) {
-            if ($null -ne $conditionsProperty.$prop) {
-                $normalized.conditions[$prop] = $conditionsProperty.$prop
-            }
-        }
-    }
-    
-    # Handle grantControls - could be GrantControls or grantControls
-    $grantControlsProperty = $null
-    if ($PolicyObject.PSObject.Properties.Name -contains "GrantControls") {
-        $grantControlsProperty = $PolicyObject.GrantControls
-    } elseif ($PolicyObject.PSObject.Properties.Name -contains "grantControls") {
-        $grantControlsProperty = $PolicyObject.grantControls
-    }
-    
-    if ($null -ne $grantControlsProperty) {
-        # Only include non-null values
-        $grantControlProperties = $grantControlsProperty | Get-Member -MemberType Properties | Select-Object -ExpandProperty Name
-        foreach ($prop in $grantControlProperties) {
-            if ($null -ne $grantControlsProperty.$prop) {
-                $normalized.grantControls[$prop] = $grantControlsProperty.$prop
-            }
-        }
-    }
-    
-    # Handle sessionControls - could be SessionControls or sessionControls
-    if ($PolicyObject.PSObject.Properties.Name -contains "SessionControls") {
-        $normalized.sessionControls = $PolicyObject.SessionControls
-    } elseif ($PolicyObject.PSObject.Properties.Name -contains "sessionControls") {
-        $normalized.sessionControls = $PolicyObject.sessionControls
-    }
-    
-    return $normalized
-}
-
 # First, process existing policies that need to be updated or removed
 foreach ($existingPolicy in $existingPolicies) {
     # Skip policies that don't follow our managed naming convention
@@ -146,6 +70,303 @@ foreach ($existingPolicy in $existingPolicies) {
     }
 }
 
+# Helper function to compare policy content for functional equivalence
+function Compare-PolicyContent {
+    param (
+        [Parameter(Mandatory = $true)]
+        [PSCustomObject]$ExistingPolicy,
+        
+        [Parameter(Mandatory = $true)]
+        [PSCustomObject]$NewPolicy
+    )
+    
+    # Get state (enabled/disabled)
+    $existingState = if ($ExistingPolicy.State) { $ExistingPolicy.State.ToLower() } else { $ExistingPolicy.state.ToLower() }
+    $newState = if ($NewPolicy.State) { $NewPolicy.State.ToLower() } else { $NewPolicy.state.ToLower() }
+    
+    if ($existingState -ne $newState) {
+        Write-Host "  - State differs: $existingState vs $newState" -ForegroundColor Gray
+        return $false
+    }
+    
+    # Helper function to extract core values from either property naming convention
+    function Get-PropertyValue {
+        param ($Obj, $PropertyName)
+        
+        $upperName = $PropertyName.Substring(0, 1).ToUpper() + $PropertyName.Substring(1)
+        $lowerName = $PropertyName.Substring(0, 1).ToLower() + $PropertyName.Substring(1)
+        
+        if ($null -ne $Obj.$upperName) {
+            return $Obj.$upperName
+        } elseif ($null -ne $Obj.$lowerName) {
+            return $Obj.$lowerName
+        } else {
+            return $null
+        }
+    }
+    
+    # Get conditions
+    $existingConditions = Get-PropertyValue -Obj $ExistingPolicy -PropertyName "Conditions"
+    $newConditions = Get-PropertyValue -Obj $NewPolicy -PropertyName "Conditions"
+    
+    # Compare applications
+    $existingApps = Get-PropertyValue -Obj $existingConditions -PropertyName "Applications"
+    $newApps = Get-PropertyValue -Obj $newConditions -PropertyName "Applications"
+    
+    if ($existingApps -and $newApps) {
+        # Compare include applications
+        $existingIncludes = $existingApps.IncludeApplications -join ','
+        $newIncludes = $newApps.includeApplications -join ','
+        
+        if ($existingIncludes -ne $newIncludes) {
+            Write-Host "  - Include applications differ: $existingIncludes vs $newIncludes" -ForegroundColor Gray
+            return $false
+        }
+        
+        # Compare exclude applications
+        $existingExcludes = if ($existingApps.ExcludeApplications) { $existingApps.ExcludeApplications -join ',' } else { "" }
+        $newExcludes = if ($newApps.excludeApplications) { $newApps.excludeApplications -join ',' } else { "" }
+        
+        if ($existingExcludes -ne $newExcludes) {
+            Write-Host "  - Exclude applications differ" -ForegroundColor Gray
+            return $false
+        }
+    }
+    
+    # Compare users
+    $existingUsers = Get-PropertyValue -Obj $existingConditions -PropertyName "Users"
+    $newUsers = Get-PropertyValue -Obj $newConditions -PropertyName "Users"
+    
+    if ($existingUsers -and $newUsers) {
+        # Compare include users
+        $existingIncludes = $existingUsers.IncludeUsers -join ','
+        $newIncludes = $newUsers.includeUsers -join ','
+        
+        if ($existingIncludes -ne $newIncludes) {
+            Write-Host "  - Include users differ" -ForegroundColor Gray
+            return $false
+        }
+        
+        # Compare exclude users
+        $existingExcludes = if ($existingUsers.ExcludeUsers) { $existingUsers.ExcludeUsers -join ',' } else { "" }
+        $newExcludes = if ($newUsers.excludeUsers) { $newUsers.excludeUsers -join ',' } else { "" }
+        
+        if ($existingExcludes -ne $newExcludes) {
+            Write-Host "  - Exclude users differ" -ForegroundColor Gray
+            return $false
+        }
+        
+        # Compare include groups
+        $existingGroups = if ($existingUsers.IncludeGroups) { $existingUsers.IncludeGroups -join ',' } else { "" }
+        $newGroups = if ($newUsers.includeGroups) { $newUsers.includeGroups -join ',' } else { "" }
+        
+        if ($existingGroups -ne $newGroups) {
+            Write-Host "  - Include groups differ" -ForegroundColor Gray
+            return $false
+        }
+        
+        # Compare exclude groups
+        $existingExGroups = if ($existingUsers.ExcludeGroups) { $existingUsers.ExcludeGroups -join ',' } else { "" }
+        $newExGroups = if ($newUsers.excludeGroups) { $newUsers.excludeGroups -join ',' } else { "" }
+        
+        if ($existingExGroups -ne $newExGroups) {
+            Write-Host "  - Exclude groups differ" -ForegroundColor Gray
+            return $false
+        }
+        
+        # Compare include roles
+        $existingRoles = if ($existingUsers.IncludeRoles) { $existingUsers.IncludeRoles -join ',' } else { "" }
+        $newRoles = if ($newUsers.includeRoles) { $newUsers.includeRoles -join ',' } else { "" }
+        
+        if ($existingRoles -ne $newRoles) {
+            Write-Host "  - Include roles differ" -ForegroundColor Gray
+            return $false
+        }
+        
+        # Compare exclude roles
+        $existingExRoles = if ($existingUsers.ExcludeRoles) { $existingUsers.ExcludeRoles -join ',' } else { "" }
+        $newExRoles = if ($newUsers.excludeRoles) { $newUsers.excludeRoles -join ',' } else { "" }
+        
+        if ($existingExRoles -ne $newExRoles) {
+            Write-Host "  - Exclude roles differ" -ForegroundColor Gray
+            return $false
+        }
+    }
+    
+    # Compare platforms
+    $existingPlatforms = Get-PropertyValue -Obj $existingConditions -PropertyName "Platforms"
+    $newPlatforms = Get-PropertyValue -Obj $newConditions -PropertyName "Platforms"
+    
+    if ($existingPlatforms -and $newPlatforms) {
+        # Compare include platforms
+        $existingIncludes = if ($existingPlatforms.IncludePlatforms) { $existingPlatforms.IncludePlatforms -join ',' } else { "" }
+        $newIncludes = if ($newPlatforms.includePlatforms) { $newPlatforms.includePlatforms -join ',' } else { "" }
+        
+        if ($existingIncludes -ne $newIncludes) {
+            Write-Host "  - Include platforms differ" -ForegroundColor Gray
+            return $false
+        }
+        
+        # Compare exclude platforms
+        $existingExcludes = if ($existingPlatforms.ExcludePlatforms) { $existingPlatforms.ExcludePlatforms -join ',' } else { "" }
+        $newExcludes = if ($newPlatforms.excludePlatforms) { $newPlatforms.excludePlatforms -join ',' } else { "" }
+        
+        if ($existingExcludes -ne $newExcludes) {
+            Write-Host "  - Exclude platforms differ" -ForegroundColor Gray
+            return $false
+        }
+    }
+    
+    # Compare locations
+    $existingLocations = Get-PropertyValue -Obj $existingConditions -PropertyName "Locations"
+    $newLocations = Get-PropertyValue -Obj $newConditions -PropertyName "Locations"
+    
+    if ($existingLocations -and $newLocations) {
+        # Compare include locations
+        $existingIncludes = if ($existingLocations.IncludeLocations) { $existingLocations.IncludeLocations -join ',' } else { "" }
+        $newIncludes = if ($newLocations.includeLocations) { $newLocations.includeLocations -join ',' } else { "" }
+        
+        if ($existingIncludes -ne $newIncludes) {
+            Write-Host "  - Include locations differ" -ForegroundColor Gray
+            return $false
+        }
+        
+        # Compare exclude locations
+        $existingExcludes = if ($existingLocations.ExcludeLocations) { $existingLocations.ExcludeLocations -join ',' } else { "" }
+        $newExcludes = if ($newLocations.excludeLocations) { $newLocations.excludeLocations -join ',' } else { "" }
+        
+        if ($existingExcludes -ne $newExcludes) {
+            Write-Host "  - Exclude locations differ" -ForegroundColor Gray
+            return $false
+        }
+    }
+    
+    # Compare client app types
+    $existingClientApps = if ($existingConditions.ClientAppTypes) { $existingConditions.ClientAppTypes -join ',' } else { "" }
+    $newClientApps = if ($newConditions.clientAppTypes) { $newConditions.clientAppTypes -join ',' } else { "" }
+    
+    if ($existingClientApps -ne $newClientApps) {
+        Write-Host "  - Client app types differ" -ForegroundColor Gray
+        return $false
+    }
+    
+    # Compare grant controls
+    $existingGrantControls = Get-PropertyValue -Obj $ExistingPolicy -PropertyName "GrantControls"
+    $newGrantControls = Get-PropertyValue -Obj $NewPolicy -PropertyName "GrantControls"
+    
+    if ($existingGrantControls -and $newGrantControls) {
+        # Compare operator
+        $existingOperator = $existingGrantControls.Operator.ToLower()
+        $newOperator = $newGrantControls.operator.ToLower()
+        
+        if ($existingOperator -ne $newOperator) {
+            Write-Host "  - Grant control operator differs" -ForegroundColor Gray
+            return $false
+        }
+        
+        # Compare built-in controls
+        $existingBuiltIn = if ($existingGrantControls.BuiltInControls) { $existingGrantControls.BuiltInControls -join ',' } else { "" }
+        $newBuiltIn = if ($newGrantControls.builtInControls) { $newGrantControls.builtInControls -join ',' } else { "" }
+        
+        if ($existingBuiltIn -ne $newBuiltIn) {
+            Write-Host "  - Built-in controls differ" -ForegroundColor Gray
+            return $false
+        }
+        
+        # Compare custom controls
+        $existingCustom = if ($existingGrantControls.CustomAuthenticationFactors) { $existingGrantControls.CustomAuthenticationFactors -join ',' } else { "" }
+        $newCustom = if ($newGrantControls.customAuthenticationFactors) { $newGrantControls.customAuthenticationFactors -join ',' } else { "" }
+        
+        if ($existingCustom -ne $newCustom) {
+            Write-Host "  - Custom controls differ" -ForegroundColor Gray
+            return $false
+        }
+    }
+    
+    # Compare session controls if they exist
+    $existingSessionControls = Get-PropertyValue -Obj $ExistingPolicy -PropertyName "SessionControls"
+    $newSessionControls = Get-PropertyValue -Obj $NewPolicy -PropertyName "SessionControls"
+    
+    # If one has session controls and the other doesn't, they're different
+    if (($null -ne $existingSessionControls -and $null -eq $newSessionControls) -or 
+        ($null -eq $existingSessionControls -and $null -ne $newSessionControls)) {
+        Write-Host "  - Session controls presence differs" -ForegroundColor Gray
+        return $false
+    }
+    
+    # If both have session controls, compare them
+    if ($null -ne $existingSessionControls -and $null -ne $newSessionControls) {
+        # Compare application enforced restrictions
+        $existingAppEnforced = if ($existingSessionControls.ApplicationEnforcedRestrictions) { $existingSessionControls.ApplicationEnforcedRestrictions.IsEnabled } else { $false }
+        $newAppEnforced = if ($newSessionControls.applicationEnforcedRestrictions) { $newSessionControls.applicationEnforcedRestrictions.isEnabled } else { $false }
+        
+        if ($existingAppEnforced -ne $newAppEnforced) {
+            Write-Host "  - Application enforced restrictions differ" -ForegroundColor Gray
+            return $false
+        }
+        
+        # Compare cloud app security
+        $existingCloudAppSecurity = if ($existingSessionControls.CloudAppSecurity) { $existingSessionControls.CloudAppSecurity.IsEnabled } else { $false }
+        $newCloudAppSecurity = if ($newSessionControls.cloudAppSecurity) { $newSessionControls.cloudAppSecurity.isEnabled } else { $false }
+        
+        if ($existingCloudAppSecurity -ne $newCloudAppSecurity) {
+            Write-Host "  - Cloud app security differ" -ForegroundColor Gray
+            return $false
+        }
+        
+        # Compare sign-in frequency
+        $existingSignInFrequency = if ($existingSessionControls.SignInFrequency) { $existingSessionControls.SignInFrequency.IsEnabled } else { $false }
+        $newSignInFrequency = if ($newSessionControls.signInFrequency) { $newSessionControls.signInFrequency.isEnabled } else { $false }
+        
+        if ($existingSignInFrequency -ne $newSignInFrequency) {
+            Write-Host "  - Sign-in frequency differ" -ForegroundColor Gray
+            return $false
+        }
+        
+        # If sign-in frequency is enabled, compare the values
+        if ($existingSignInFrequency -and $newSignInFrequency) {
+            $existingValue = $existingSessionControls.SignInFrequency.Value
+            $newValue = $newSessionControls.signInFrequency.value
+            
+            if ($existingValue -ne $newValue) {
+                Write-Host "  - Sign-in frequency value differs" -ForegroundColor Gray
+                return $false
+            }
+            
+            $existingType = $existingSessionControls.SignInFrequency.Type
+            $newType = $newSessionControls.signInFrequency.type
+            
+            if ($existingType -ne $newType) {
+                Write-Host "  - Sign-in frequency type differs" -ForegroundColor Gray
+                return $false
+            }
+        }
+        
+        # Compare persistent browser
+        $existingPersistentBrowser = if ($existingSessionControls.PersistentBrowser) { $existingSessionControls.PersistentBrowser.IsEnabled } else { $false }
+        $newPersistentBrowser = if ($newSessionControls.persistentBrowser) { $newSessionControls.persistentBrowser.isEnabled } else { $false }
+        
+        if ($existingPersistentBrowser -ne $newPersistentBrowser) {
+            Write-Host "  - Persistent browser differ" -ForegroundColor Gray
+            return $false
+        }
+        
+        # If persistent browser is enabled, compare the mode
+        if ($existingPersistentBrowser -and $newPersistentBrowser) {
+            $existingMode = $existingSessionControls.PersistentBrowser.Mode
+            $newMode = $newSessionControls.persistentBrowser.mode
+            
+            if ($existingMode -ne $newMode) {
+                Write-Host "  - Persistent browser mode differs" -ForegroundColor Gray
+                return $false
+            }
+        }
+    }
+    
+    # If we got here, the policies are functionally equivalent
+    return $true
+}
+
 # Now process the JSON files for creation/update
 foreach ($jsonFile in $jsonFiles) {
     try {
@@ -168,72 +389,10 @@ foreach ($jsonFile in $jsonFiles) {
         $existingPolicy = $existingPolicies | Where-Object { $_.DisplayName -eq $policyJson.displayName }
 
         if ($existingPolicy) {
-            # Normalize both objects for comparison
-            $normalizedExisting = Normalize-PolicyObject -PolicyObject $existingPolicy
-            $normalizedNew = Normalize-PolicyObject -PolicyObject $policyObject
+            # Compare policy content for functional equivalence
+            $areEquivalent = Compare-PolicyContent -ExistingPolicy $existingPolicy -NewPolicy $policyObject
             
-            # Convert to JSON for comparison, but sort properties to ensure consistent order
-            $existingJson = $normalizedExisting | ConvertTo-Json -Depth 10 -Compress
-            $newJson = $normalizedNew | ConvertTo-Json -Depth 10 -Compress
-            
-            # Debug - uncomment to see the JSON comparison
-            #Write-Host "Existing: $existingJson"
-            #Write-Host "New: $newJson"
-            
-            # Compare using a more focused approach
-            $isEqual = $true
-            
-            # Compare state
-            if ($normalizedExisting.state -ne $normalizedNew.state) {
-                $isEqual = $false
-                Write-Host "  - State differs: '$($normalizedExisting.state)' vs '$($normalizedNew.state)'" -ForegroundColor Gray
-            }
-            
-            # Compare conditions
-            $existingCondKeys = $normalizedExisting.conditions.Keys
-            $newCondKeys = $normalizedNew.conditions.Keys
-            if (($existingCondKeys | Sort-Object) -join ',' -ne ($newCondKeys | Sort-Object) -join ',') {
-                $isEqual = $false
-                Write-Host "  - Condition keys differ" -ForegroundColor Gray
-            } else {
-                foreach ($key in $existingCondKeys) {
-                    $existingCondJson = $normalizedExisting.conditions[$key] | ConvertTo-Json -Depth 10 -Compress
-                    $newCondJson = $normalizedNew.conditions[$key] | ConvertTo-Json -Depth 10 -Compress
-                    if ($existingCondJson -ne $newCondJson) {
-                        $isEqual = $false
-                        Write-Host "  - Condition '$key' differs" -ForegroundColor Gray
-                    }
-                }
-            }
-            
-            # Compare grant controls
-            $existingGrantKeys = $normalizedExisting.grantControls.Keys
-            $newGrantKeys = $normalizedNew.grantControls.Keys
-            if (($existingGrantKeys | Sort-Object) -join ',' -ne ($newGrantKeys | Sort-Object) -join ',') {
-                $isEqual = $false
-                Write-Host "  - Grant control keys differ" -ForegroundColor Gray
-            } else {
-                foreach ($key in $existingGrantKeys) {
-                    $existingGrantJson = $normalizedExisting.grantControls[$key] | ConvertTo-Json -Depth 10 -Compress
-                    $newGrantJson = $normalizedNew.grantControls[$key] | ConvertTo-Json -Depth 10 -Compress
-                    if ($existingGrantJson -ne $newGrantJson) {
-                        $isEqual = $false
-                        Write-Host "  - Grant control '$key' differs" -ForegroundColor Gray
-                    }
-                }
-            }
-            
-            # Compare session controls
-            if ($null -ne $normalizedExisting.sessionControls -or $null -ne $normalizedNew.sessionControls) {
-                $existingSessionJson = $normalizedExisting.sessionControls | ConvertTo-Json -Depth 10 -Compress
-                $newSessionJson = $normalizedNew.sessionControls | ConvertTo-Json -Depth 10 -Compress
-                if ($existingSessionJson -ne $newSessionJson) {
-                    $isEqual = $false
-                    Write-Host "  - Session controls differ" -ForegroundColor Gray
-                }
-            }
-            
-            if ($isEqual) {
+            if ($areEquivalent) {
                 # Policy is unchanged
                 Write-Host "Policy unchanged: $($policyJson.displayName)" -ForegroundColor Blue
                 $unchanged++
