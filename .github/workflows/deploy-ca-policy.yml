@@ -41,22 +41,32 @@ jobs:
         run: |
           ./scripts/crud-policies.ps1
         shell: pwsh
+      
+      # Upload summary as artifact
+      - name: Upload deployment summary
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: deployment-summary
+          path: deployment-summary.json
+          retention-days: 5
 
   # Third job - send notification
   notify:
     needs: deploy
-    if: always()  # Run even if deploy job fails
+    if: always() 
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v3
+      
       # Download summary from previous job
       - name: Download deployment summary
         if: always()
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v2
         with:
           name: deployment-summary
-        
+      
       - name: Send detailed notification
         shell: pwsh
         run: |
